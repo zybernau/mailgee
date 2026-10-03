@@ -1,0 +1,64 @@
+# Built application files / build outputs
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Build and cache directories
+**/build/
+build/
+.gradle/
+.kotlin/
+.cxx/
+bin/
+gen/
+out/
+captures/
+
+# Local configuration file (contains SDK paths, sensitive properties)
+local.properties
+
+# Android Studio / IntelliJ IDEA configuration files
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+
+# Android Studio / Gradle options
+.gradletasknamecache
+
+# Keystores & Signing keys
+*.jks
+*.keystore
+*.pepk
+
+# Memory dumps and profiling logs
+*.hprof
+*.log
+
+# Crashlytics & Analytics build artifacts
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# OS / System specific files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Environment & local secret files
+*.env

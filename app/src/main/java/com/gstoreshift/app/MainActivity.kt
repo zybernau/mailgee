@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.gstoreshift.app.account.GoogleAccountManager
 import com.gstoreshift.app.ui.MainViewModel
 import com.gstoreshift.app.ui.QuotaInfo
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -38,7 +37,7 @@ class MainActivity : ComponentActivity() {
         val refreshing by vm.refreshingQuotas.collectAsState()
         val snackbar = remember { SnackbarHostState() }
 
-        val signInClient = remember { GoogleAccountManager(this@MainActivity).client() }
+        val signInClient = remember(vm) { vm.accountManager.client() }
 
         val hostSignIn = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -48,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     .getResult(ApiException::class.java)
                 account.email?.let { vm.onHostSignedIn(it) }
             } catch (e: ApiException) {
-                vm.reportSignInError("host", "code ${e.statusCode}. Check OAuth client & SHA-1.")
+                vm.reportSignInError("host", e.statusCode, e.message)
             }
         }
 
@@ -60,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     .getResult(ApiException::class.java)
                 account.email?.let { vm.onAuxSignedIn(it) }
             } catch (e: ApiException) {
-                vm.reportSignInError("aux", "code ${e.statusCode}. Check OAuth client & SHA-1.")
+                vm.reportSignInError("aux", e.statusCode, e.message)
             }
         }
 

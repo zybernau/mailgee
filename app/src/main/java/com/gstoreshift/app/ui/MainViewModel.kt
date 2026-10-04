@@ -23,10 +23,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val db = AppDatabase.build(app)
-    private val accounts = GoogleAccountManager(app).apply {
-        // DIAGNOSTIC BUILD: identity-only sign-in to isolate the code-10 cause.
-        includeDriveScope = false
+    val accountManager = GoogleAccountManager(app)
+    val appPackageName: String = app.packageName
+    val appSha1: String by lazy { accountManager.getSigningSha1() }
+
+    init {
+        logTest("APP_CERT_INFO pkg=$appPackageName sha1=$appSha1")
     }
+
     private val scanner = MediaScanner(app, db)
     private val okHttp = OkHttpClient()
 
@@ -49,7 +53,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val scanning: StateFlow<Boolean> = _scanning
 
     /** Reactive host account. */
-    private val _hostEmail = MutableStateFlow(accounts.hostEmail())
+    private val _hostEmail = MutableStateFlow(accountManager.hostEmail())
     val hostEmail: StateFlow<String?> = _hostEmail
 
     /** Live quota values keyed by email (hosts + aux). */
@@ -73,13 +77,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun signOutHost() = viewModelScope.launch {
-        runCatching { accounts.signOutAll() }
+        runCatching { accountManager.signOutAll() }
         _hostEmail.value = null
         logTest("HOST_SIGNED_OUT")
     }
 
     fun onAuxSignedIn(email: String) = viewModelScope.launch {
-        accounts.registerAux(email)
+        accountManager.registerAux(email)
         db.auxAccounts().upsert(AuxAccountEntity(email = email))
         refreshQuota(email)
         logTest("AUX_SIGNIN_OK email=$email")
@@ -87,9 +91,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeAux(email: String) = viewModelScope.launch {
-        accounts.unregisterAux(email)
+        accountManager.unregisterAux(email)
         db.auxAccounts().remove(email)
         _message.value = "Removed $email"
+    }
+
+    fun reportSignInError(role: String?, statusCode: Int, rawMessage: String? = null) {
+        val readable = GoogleAccountManager.getReadableErrorMessage(statusCode, rawMessage, appPackageName, appSha1)
+        logTest("SIGNIN_FAIL role=$role statusCode=$statusCode error=$readable")
+        _message.value = "Sign-in failed${role?.let { " ($it)" } ?: ""}: $readable"
     }
 
     fun reportSignInError(role: String?, error: String) {
@@ -100,7 +110,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Refresh quota for one account; errors surfaced via [message]. */
     fun refreshQuota(email: String) = viewModelScope.launch {
         runCatching {
-            val client = DriveClient(getApplication(), okHttp) { accounts.accessToken(email) }
+            val client = DriveClient(getApplication(), okHttp) { accountManager.accessToken(email) }
             client.storageQuota()
         }.onSuccess { q ->
             _quotas.value = _quotas.value + (email to QuotaInfo(q.limit, q.usage, q.free))
@@ -121,7 +131,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (targets.isEmpty()) _message.value = "No accounts signed in yet."
         targets.forEach { email ->
             runCatching {
-                val client = DriveClient(getApplication(), okHttp) { accounts.accessToken(email) }
+                val client = DriveClient(getApplication(), okHttp) { accountManager.accessToken(email) }
                 client.storageQuota()
             }.onSuccess { q ->
                 _quotas.value = _quotas.value + (email to QuotaInfo(q.limit, q.usage, q.free))
